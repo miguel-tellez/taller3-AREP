@@ -53,32 +53,45 @@ public class HttpServer {
      * Maneja las solicitudes de la API REST `/api/restaurants`
      */
     private static void handleApiRequest(String method, String path, BufferedReader in, PrintWriter out) throws IOException {
-        if (method.equals("GET")) {
-            // Devuelve la lista de restaurantes en formato JSON
-            String jsonResponse = "[" + String.join(",", restaurants.stream().map(r -> "\"" + r + "\"").collect(Collectors.toList())) + "]";
-            sendResponse(out, 200, "OK", jsonResponse);
-        } else if (method.equals("POST")) {
-            // Agregar un restaurante
-            String body = getRequestBody(in);
-            restaurants.add(body);
-            sendResponse(out, 201, "Created", "Restaurante agregado: " + body);
-        } else if (method.equals("DELETE")) {
-            // Eliminar un restaurante por índice
-            try {
-                int index = Integer.parseInt(path.split("/")[3]);
-                if (index >= 0 && index < restaurants.size()) {
-                    restaurants.remove(index);
-                    sendResponse(out, 200, "OK", "Restaurante eliminado");
+        System.out.println("Manejando API Request: " + method + " " + path);
+
+        if (path.equals("/api/restaurants")) { // GET y POST
+            if (method.equals("GET")) {
+                String jsonResponse = "[" + String.join(",", restaurants.stream().map(r -> "\"" + r + "\"").toList()) + "]";
+                sendResponse(out, 200, "OK", jsonResponse);
+            } else if (method.equals("POST")) {
+                String body = getRequestBody(in);
+                if (body != null && !body.isEmpty()) {
+                    restaurants.add(body);
+                    sendResponse(out, 201, "Created", "Restaurante agregado: " + body);
                 } else {
-                    sendResponse(out, 400, "Bad Request", "Índice inválido");
+                    sendResponse(out, 400, "Bad Request", "Nombre del restaurante vacío.");
                 }
-            } catch (Exception e) {
-                sendResponse(out, 400, "Bad Request", "Índice inválido");
+            } else {
+                sendResponse(out, 405, "Method Not Allowed", "Método no permitido en /api/restaurants.");
+            }
+        } else if (path.matches("^/api/restaurants/\\d+$")) { // DELETE con índice
+            if (method.equals("DELETE")) {
+                try {
+                    int index = Integer.parseInt(path.substring(path.lastIndexOf("/") + 1));
+                    if (index >= 0 && index < restaurants.size()) {
+                        restaurants.remove(index);
+                        sendResponse(out, 200, "OK", "Restaurante eliminado.");
+                    } else {
+                        sendResponse(out, 400, "Bad Request", "Índice inválido.");
+                    }
+                } catch (Exception e) {
+                    sendResponse(out, 400, "Bad Request", "Error eliminando restaurante.");
+                }
+            } else {
+                sendResponse(out, 405, "Method Not Allowed", "Método no permitido en /api/restaurants/{index}.");
             }
         } else {
-            sendResponse(out, 405, "Method Not Allowed", "Método no permitido.");
+            sendResponse(out, 404, "Not Found", "Ruta API no encontrada.");
         }
     }
+
+
 
     /**
      * Obtiene el cuerpo de la solicitud (usado en POST)
